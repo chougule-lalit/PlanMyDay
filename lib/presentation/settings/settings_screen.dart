@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:plan_my_day/data/providers/database_provider.dart';
 import 'package:plan_my_day/data/database/database.dart';
 import 'package:plan_my_day/core/theme/app_theme.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -22,12 +23,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
   final _factLabelController = TextEditingController();
   final _factValueController = TextEditingController();
 
+  final _secureStorage = const FlutterSecureStorage(); // Initialize SecureStorage
+
   // Temporary State for Bio-Rhythms (to save in batch)
   TimeOfDay? _wakeTime;
   TimeOfDay? _sleepTime;
   TimeOfDay? _workStart;
   TimeOfDay? _workEnd;
   String _commuteMode = 'car';
+  String _aiModel = 'gemini-1.5-flash';
 
   bool _isInit = false;
 
@@ -35,6 +39,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _apiKeyController.dispose();
+    _homeLocationController.dispose();
+    _officeLocationController.dispose();
+    _factLabelController.dispose();
+    _factValueController.dispose();
+    super.dispose();
   }
 
   @override
@@ -49,6 +64,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
   Future<void> _loadSettings() async {
     final db = ref.read(databaseProvider);
     final settings = await (db.select(db.settings)..where((t) => t.id.equals(1))).getSingleOrNull();
+    final apiKey = await _secureStorage.read(key: 'GEMINI_API_KEY'); // Read from SecureStorage
 
     if (settings != null) {
       if (mounted) {
@@ -58,7 +74,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
           _workStart = _parseTime(settings.workStart);
           _workEnd = _parseTime(settings.workEnd);
           _commuteMode = settings.commuteMode ?? 'car';
-          _apiKeyController.text = settings.apiKey ?? '';
+          _aiModel = settings.aiModel ?? 'gemini-1.5-flash';
+          _apiKeyController.text = apiKey ?? ''; // Use SecureStorage value
           _homeLocationController.text = settings.homeLocation ?? '';
           _officeLocationController.text = settings.officeLocation ?? '';
         });
@@ -99,6 +116,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
 
   Future<void> _saveSettings() async {
     final db = ref.read(databaseProvider);
+    
+    // Save API Key to SecureStorage
+    await _secureStorage.write(key: 'GEMINI_API_KEY', value: _apiKeyController.text.trim());
+
     await db.into(db.settings).insertOnConflictUpdate(SettingsCompanion(
       id: const drift.Value(1),
       wakeTime: drift.Value(_formatTime(_wakeTime)),
@@ -106,7 +127,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
       workStart: drift.Value(_formatTime(_workStart)),
       workEnd: drift.Value(_formatTime(_workEnd)),
       commuteMode: drift.Value(_commuteMode),
-      apiKey: drift.Value(_apiKeyController.text),
+      aiModel: drift.Value(_aiModel),
+      // apiKey is NOT saved to DB anymore
       homeLocation: drift.Value(_homeLocationController.text),
       officeLocation: drift.Value(_officeLocationController.text),
       isSetupComplete: const drift.Value(true),
@@ -191,9 +213,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
         ),
         const SizedBox(height: 12),
         _buildInfoCard("Work Hours", "${_formatTime(_workStart)} - ${_formatTime(_workEnd)}", Icons.work_outline, () {
-             // For simplicity, just triggers start time for now, ideally range picker
              _selectTime('workStart'); 
-             // Then maybe workEnd? Keeping simple for MVP.
         }, isWide: true),
          const SizedBox(height: 32),
 
@@ -245,15 +265,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  DropdownButton<String>(
-                    value: "Gemini 1.5 Flash",
-                    items: ["Gemini 1.5 Flash", "GPT-4o", "Claude 3.5 Sonnet"]
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 14))))
-                        .toList(),
-                    onChanged: (val) {}, // No-op for MVP, just visual
-                    underline: Container(),
-                    icon: const Icon(Icons.arrow_drop_down, color: AppTheme.focusBlue),
+                   Expanded(
+                    child: DropdownButton<String>(
+                      value: _aiModel,
+                      isExpanded: true,
+                      dropdownColor: AppTheme.surface,
+                      items: [
+                        "gemini-1.5-flash", 
+                        "gemini-1.5-pro",
+                        "gemini-2.0-flash",
+                        "gemini-2.0-pro",
+                        "gemini-3.0-pro"
+                      ].map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 14)))).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _aiModel = val);
+                          _saveSettings();
+                        }
+                      },
+                      underline: Container(),
+                      icon: const Icon(Icons.arrow_drop_down, color: AppTheme.focusBlue),
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(

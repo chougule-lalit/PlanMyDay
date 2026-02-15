@@ -17,9 +17,6 @@ class Settings extends Table {
   TextColumn get apiKey => text().nullable()(); // Gemini API Key
   
   BoolColumn get isSetupComplete => boolean().withDefault(const Constant(false))();
-
-  @override
-  Set<Column> get primaryKey => {id};
 }
 
 @DataClassName('CustomFact')
