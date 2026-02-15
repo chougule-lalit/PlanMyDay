@@ -7,9 +7,9 @@ class ArchitectService {
   late final GenerativeModel _model;
   final String apiKey;
 
-  ArchitectService(this.apiKey) {
+  ArchitectService(this.apiKey, {String? modelName}) {
     _model = GenerativeModel(
-      model: 'gemini-1.5-flash', 
+      model: modelName ?? 'gemini-1.5-flash', 
       apiKey: apiKey,
       generationConfig: GenerationConfig(responseMimeType: 'application/json'),
     );

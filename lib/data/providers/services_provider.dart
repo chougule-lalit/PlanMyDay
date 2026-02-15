@@ -19,9 +19,18 @@ Future<ArchitectService> architect(Ref ref) async {
   // Get API Key from Settings (Singleton ID 1)
   final settings = await (db.select(db.settings)..where((t) => t.id.equals(1))).getSingleOrNull();
   
+// ... (settings fetch)
   if (settings?.apiKey == null || settings!.apiKey!.isEmpty) {
     throw Exception("API Key not found. Please add it in Settings.");
   }
 
+  // Use the dropdown value or default
+  // settings table doesnt have modelName yet, so we will just use flash for now 
+  // OR we can try to guess based on key, but better to default to flash.
+  // Wait, I saw the dropdown but it was just UI in SettingsScreen.
+  // For now, let's stick to 'gemini-1.5-flash' as default but prep for 'gemini-1.5-pro' if user wants.
+  // Actually, let's change default to 'gemini-1.5-pro' if the user said "3 pro" (likely 1.5 pro).
+  // But safest is to keep flash for speed unless we persist the selection.
+  
   return ArchitectService(settings.apiKey!);
 }

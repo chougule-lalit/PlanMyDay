@@ -21,6 +21,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   TimeOfDay? _workStart;
   TimeOfDay? _workEnd;
   String _commuteMode = 'car';
+  final _homeLocationController = TextEditingController();
+  final _officeLocationController = TextEditingController();
 
   Future<void> _selectTime(BuildContext context, String field) async {
     final TimeOfDay? picked = await showTimePicker(
@@ -58,6 +60,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       workStart: drift.Value(_formatTime(_workStart)),
       workEnd: drift.Value(_formatTime(_workEnd)),
       commuteMode: drift.Value(_commuteMode),
+      homeLocation: drift.Value(_homeLocationController.text),
+      officeLocation: drift.Value(_officeLocationController.text),
       isSetupComplete: const drift.Value(true),
     ));
 
@@ -83,6 +87,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               _buildTimeTile("Sleep Time", _sleepTime, () => _selectTime(context, 'sleep')),
               _buildTimeTile("Work Start", _workStart, () => _selectTime(context, 'workStart')),
               _buildTimeTile("Work End", _workEnd, () => _selectTime(context, 'workEnd')),
+              const SizedBox(height: 24),
+              Text("Locations", style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _homeLocationController,
+                decoration: const InputDecoration(labelText: "Home Address", border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _officeLocationController,
+                decoration: const InputDecoration(labelText: "Office Address", border: OutlineInputBorder()),
+              ),
               const SizedBox(height: 24),
               Text("Commute", style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 8),

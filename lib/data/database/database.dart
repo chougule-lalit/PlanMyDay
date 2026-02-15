@@ -10,10 +10,36 @@ part 'database.g.dart';
 
 @DriftDatabase(tables: [Settings, CustomFacts, Tasks])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 2; // Incrementing schema version for Tasks table
+  int get schemaVersion => 3;
+
+  @override
+  MigrationStrategy get migration {
+    return MigrationStrategy(
+      onCreate: (Migrator m) async {
+        await m.createAll();
+      },
+      onUpgrade: (Migrator m, int from, int to) async {
+        if (from < 2) {
+          // Schema v2 adds location columns and apiKey to Settings
+          // We can just recreate tables for MVP or alter. 
+          // Since we are in dev, let's keep it simple: if missing, add columns.
+          // For safety/simplicity in MVP dev cycle, we might just want to be careful.
+          // But actually, `addColumn` is safer.
+          await m.addColumn(settings, settings.homeLocation);
+          await m.addColumn(settings, settings.officeLocation);
+          await m.addColumn(settings, settings.apiKey);
+          await m.addColumn(settings, settings.commuteMode);
+        }
+        if (from < 3) {
+           // Schema v3 adds aiModel
+           await m.addColumn(settings, settings.aiModel);
+        }
+      },
+    );
+  }
 }
 
 LazyDatabase _openConnection() {
@@ -23,3 +49,4 @@ LazyDatabase _openConnection() {
     return NativeDatabase.createInBackground(file);
   });
 }
+```

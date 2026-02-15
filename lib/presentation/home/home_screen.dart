@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plan_my_day/data/providers/database_provider.dart';
 import 'package:plan_my_day/data/providers/services_provider.dart';
 import 'package:plan_my_day/data/database/database.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:intl/intl.dart';
+import 'package:plan_my_day/presentation/home/widgets/input_overlay.dart';
+import 'package:plan_my_day/core/theme/app_theme.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -20,8 +23,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _processPlan() async {
     if (_inputController.text.isEmpty) return;
     
+    // We are already on the HomeScreen, the overlay has been popped.
     setState(() => _isProcessing = true);
-    Navigator.pop(context); // Close dialog
 
     try {
       final librarian = ref.read(librarianProvider);
@@ -36,8 +39,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       // 3. Save to DB
       final db = ref.read(databaseProvider);
       await db.batch((batch) {
-        // Clear existing tasks for the day? Or append? masterplan isn't strict.
-        // For MVP, lets just insert.
         for (var task in schedule.tasks) {
           batch.insert(db.tasks, TasksCompanion(
             date: drift.Value(DateFormat('yyyy-MM-dd').format(schedule.date)),
@@ -55,29 +56,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Plan generated!")));
       }
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint("Error generating plan: $e\n$stack");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Error: $e"), 
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ));
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
   }
 
-  void _showInputDialog() {
-    showDialog(
+  void _showInputOverlay() {
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Plan My Day"),
-        content: TextField(
-          controller: _inputController,
-          decoration: const InputDecoration(hintText: "e.g., Gym at 6, finish report by 2"),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
-          FilledButton(onPressed: _processPlan, child: const Text("Go")),
-        ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => InputOverlay(
+        onSend: (text) {
+          // 1. Pop the overlay FIRST
+          Navigator.pop(ctx); 
+          // 2. Then update state and process
+          _inputController.text = text;
+          _processPlan();
+        },
       ),
     );
   }
@@ -93,14 +98,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => showDialog(context: context, builder: (_) => const AlertDialog(title: Text("Use Settings Tab"))), // Temp override since router handles nav
+            onPressed: () => context.push('/settings'),
           )
         ],
       ),
       body: _isProcessing 
         ? const Center(child: CircularProgressIndicator())
         : StreamBuilder<List<Task>>(
-            stream: (db.select(db.tasks)..where((t) => t.date.equals(today))..orderBy([(t) => OrderingTerm(expression: t.startTime)])).watch(),
+            // ... (existing stream builder content)
+            stream: (db.select(db.tasks)..where((t) => t.date.equals(today))..orderBy([(t) => drift.OrderingTerm(expression: t.startTime)])).watch(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
               final tasks = snapshot.data!;
@@ -110,9 +116,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.event_note, size: 64, color: Colors.grey),
+                      const Icon(Icons.mic, size: 64, color: AppTheme.focusBlue),
                       const SizedBox(height: 16),
-                      Text("No plan yet.", style: Theme.of(context).textTheme.bodyLarge),
+                      Text("Tap the mic to start planning", style: Theme.of(context).textTheme.bodyLarge),
                     ],
                   ),
                 );
@@ -153,8 +159,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             },
           ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showInputDialog,
-        icon: const Icon(Icons.mic), // Using Mic icon as per brand.md suggestion (though it's text input now)
+        onPressed: _showInputOverlay,
+        icon: const Icon(Icons.mic), 
         label: const Text("Plan"),
       ),
     );

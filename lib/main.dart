@@ -12,11 +12,12 @@ class PlanMyDayApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
       title: 'Plan My Day',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      routerConfig: appRouter,
+      routerConfig: router,
     );
   }
 }

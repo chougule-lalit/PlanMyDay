@@ -13,9 +13,13 @@ class Settings extends Table {
   TextColumn get homeLocation => text().nullable()(); // JSON or String
   TextColumn get officeLocation => text().nullable()();
   TextColumn get commuteMode => text().nullable()(); // 'car', 'train', 'walk'
+  TextColumn get aiModel => text().withDefault(const Constant('gemini-1.5-flash'))(); // 'gemini-1.5-flash', 'gemini-1.5-pro'
   TextColumn get apiKey => text().nullable()(); // Gemini API Key
   
   BoolColumn get isSetupComplete => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
 }
 
 @DataClassName('CustomFact')
