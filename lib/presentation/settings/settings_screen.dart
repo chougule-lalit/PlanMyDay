@@ -5,6 +5,7 @@ import 'package:plan_my_day/data/providers/database_provider.dart';
 import 'package:plan_my_day/data/database/database.dart';
 import 'package:plan_my_day/core/theme/app_theme.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:plan_my_day/data/providers/services_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -133,6 +134,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
       officeLocation: drift.Value(_officeLocationController.text),
       isSetupComplete: const drift.Value(true),
     ));
+    
+    // Invalidate the architect provider to ensure the new API key is used immediately
+    ref.invalidate(architectProvider);
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Settings Saved")));
     }
@@ -275,7 +280,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                         "gemini-1.5-pro",
                         "gemini-2.0-flash",
                         "gemini-2.0-pro",
-                        "gemini-3.0-pro"
+                        "gemini-3-pro-preview"
                       ].map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 14)))).toList(),
                       onChanged: (val) {
                         if (val != null) {
